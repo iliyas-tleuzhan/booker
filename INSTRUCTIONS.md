@@ -15,7 +15,7 @@ It does not bypass CAPTCHA, MFA, login checks, rate limits, access controls, or 
 Open PowerShell from the project directory:
 
 ```powershell
-cd "C:\Users\user\OneDrive\Рабочий стол\booker\hku-booking-agent"
+cd "C:\Users\user\OneDrive\Рабочий стол\booker"
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 ```
@@ -439,4 +439,3 @@ python -m app.main run
 ```
 
 Only use live booking after the HKUL selectors have been implemented and tested in dry-run mode.
-

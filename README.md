@@ -172,7 +172,7 @@ The HKUL booking site DOM can change and may vary by facility, login state, lang
 ## Commands From Scratch
 
 ```powershell
-cd C:\Users\user\OneDrive\Рабочий стол\booker\hku-booking-agent
+cd "C:\Users\user\OneDrive\Рабочий стол\booker"
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
@@ -187,4 +187,3 @@ python -m app.main plan-now
 python -m app.main book-now --dry-run
 python -m app.main run
 ```
-
