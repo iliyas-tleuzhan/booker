@@ -1,0 +1,12 @@
+.env
+credentials.json
+token.json
+data/*.db
+data/screenshots/
+playwright/.auth/
+__pycache__/
+**/__pycache__/
+.venv/
+*.log
+.pytest_cache/
+
