@@ -12,10 +12,18 @@ It does not bypass CAPTCHA, MFA, login checks, rate limits, access controls, or 
 
 ## 2. Create And Activate A Virtual Environment
 
-Open PowerShell from the project directory:
+Open either `cmd.exe` or PowerShell from the project directory.
+
+For `cmd.exe`:
+
+```bat
+python -m venv .venv
+.venv\Scripts\activate.bat
+```
+
+For PowerShell:
 
 ```powershell
-cd "C:\Users\user\OneDrive\Рабочий стол\booker"
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 ```
@@ -29,7 +37,7 @@ python -m pip install --upgrade pip
 Install Python dependencies:
 
 ```powershell
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
 
 Install the Playwright browser:
@@ -40,7 +48,15 @@ python -m playwright install chromium
 
 ## 3. Create Your `.env` File
 
-Copy the example config:
+Copy the example config.
+
+For `cmd.exe`:
+
+```bat
+copy .env.example .env
+```
+
+For PowerShell:
 
 ```powershell
 Copy-Item .env.example .env
@@ -112,11 +128,19 @@ python -m app.main test-calendar
 6. Send a message to your new bot from your Telegram account.
 7. Get your chat ID:
 
-```powershell
-Invoke-RestMethod "https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates"
+For `cmd.exe`:
+
+```bat
+curl "https://api.telegram.org/botYOUR_TOKEN/getUpdates"
 ```
 
-Find the `chat.id` value and put it in `.env` as `TELEGRAM_CHAT_ID`.
+For PowerShell:
+
+```powershell
+Invoke-RestMethod "https://api.telegram.org/botYOUR_TOKEN/getUpdates"
+```
+
+Replace `YOUR_TOKEN` with the exact value from `TELEGRAM_BOT_TOKEN`. Do not include `<` or `>` around the token. Find the `chat.id` value and put it in `.env` as `TELEGRAM_CHAT_ID`.
 
 Test Telegram:
 
@@ -439,3 +463,4 @@ python -m app.main run
 ```
 
 Only use live booking after the HKUL selectors have been implemented and tested in dry-run mode.
+

@@ -37,13 +37,27 @@ Secrets and local state are gitignored:
 
 ## Setup
 
-From the project directory:
+From the project directory, use the command block for your shell.
+
+For `cmd.exe`:
+
+```bat
+python -m venv .venv
+.venv\Scripts\activate.bat
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python -m playwright install chromium
+copy .env.example .env
+python -m app.main init-db
+```
+
+For PowerShell:
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 python -m playwright install chromium
 Copy-Item .env.example .env
 python -m app.main init-db
@@ -79,11 +93,19 @@ This opens a browser for consent and saves `token.json`. Both files are ignored 
 4. Send any message to your bot.
 5. Find your chat ID with:
 
-```powershell
-Invoke-RestMethod "https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates"
+For `cmd.exe`:
+
+```bat
+curl "https://api.telegram.org/botYOUR_TOKEN/getUpdates"
 ```
 
-Put that ID in `TELEGRAM_CHAT_ID`, then test:
+For PowerShell:
+
+```powershell
+Invoke-RestMethod "https://api.telegram.org/botYOUR_TOKEN/getUpdates"
+```
+
+Replace `YOUR_TOKEN` with the exact value from `TELEGRAM_BOT_TOKEN`. Do not include `<` or `>` around the token. Put the `chat.id` value in `TELEGRAM_CHAT_ID`, then test:
 
 ```powershell
 python -m app.main test-telegram
@@ -134,7 +156,7 @@ On Raspberry Pi 5:
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 python -m playwright install chromium
 cp .env.example .env
 python -m app.main init-db
@@ -171,12 +193,33 @@ The HKUL booking site DOM can change and may vary by facility, login state, lang
 
 ## Commands From Scratch
 
+Open a terminal in the project directory first.
+
+For `cmd.exe`:
+
+```bat
+python -m venv .venv
+.venv\Scripts\activate.bat
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python -m playwright install chromium
+copy .env.example .env
+python -m app.main init-db
+python -m app.main test-telegram
+python -m app.main test-calendar
+python -m app.main login-hkul
+python -m app.main plan-now
+python -m app.main book-now --dry-run
+python -m app.main run
+```
+
+For PowerShell:
+
 ```powershell
-cd "C:\Users\user\OneDrive\Рабочий стол\booker"
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 python -m playwright install chromium
 Copy-Item .env.example .env
 python -m app.main init-db
