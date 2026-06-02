@@ -24,11 +24,17 @@ def _test_calendar() -> None:
 
 
 def _book_now(dry_run: bool) -> None:
+    telegram_bot.poll_replies(timeout=0)
     request = db.get_confirmed_request_for_booking_window()
     if request is None:
         raise SystemExit("No confirmed booking request found. Confirm a pending request first.")
     result = book_room(request, dry_run=dry_run)
     print(result)
+
+
+def _poll_telegram(timeout: int) -> None:
+    next_offset = telegram_bot.poll_replies(timeout=timeout)
+    print(f"Polled Telegram replies. Next offset: {next_offset}")
 
 
 def main() -> None:
@@ -44,6 +50,8 @@ def main() -> None:
     sub.add_parser("run")
     sub.add_parser("test-telegram")
     sub.add_parser("test-calendar")
+    poll_telegram = sub.add_parser("poll-telegram")
+    poll_telegram.add_argument("--timeout", type=int, default=10)
 
     args = parser.parse_args()
     _configure_logging()
@@ -65,8 +73,9 @@ def main() -> None:
         print(f"Sent Telegram message id: {message_id}")
     elif args.command == "test-calendar":
         _test_calendar()
+    elif args.command == "poll-telegram":
+        _poll_telegram(timeout=args.timeout)
 
 
 if __name__ == "__main__":
     main()
-

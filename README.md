@@ -127,10 +127,11 @@ Dry-run mode opens the booking site, saves screenshots, and stops before final s
 
 ```powershell
 python -m app.main plan-now
+python -m app.main poll-telegram
 python -m app.main book-now --dry-run
 ```
 
-You can also set `DRY_RUN=true` in `.env`, which is the default.
+Reply in Telegram before running `poll-telegram`. `book-now` also does a quick Telegram poll before checking for a confirmed request. You can also set `DRY_RUN=true` in `.env`, which is the default.
 
 ## Live Booking Warning
 
@@ -176,6 +177,7 @@ python -m app.main book-now --live
 python -m app.main run
 python -m app.main test-telegram
 python -m app.main test-calendar
+python -m app.main poll-telegram
 ```
 
 ## Troubleshooting
@@ -209,6 +211,7 @@ python -m app.main test-telegram
 python -m app.main test-calendar
 python -m app.main login-hkul
 python -m app.main plan-now
+python -m app.main poll-telegram
 python -m app.main book-now --dry-run
 python -m app.main run
 ```
@@ -227,6 +230,7 @@ python -m app.main test-telegram
 python -m app.main test-calendar
 python -m app.main login-hkul
 python -m app.main plan-now
+python -m app.main poll-telegram
 python -m app.main book-now --dry-run
 python -m app.main run
 ```

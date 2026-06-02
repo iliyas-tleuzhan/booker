@@ -62,8 +62,8 @@ def parse_user_reply(text: str) -> ParsedReply:
     return ParsedReply(action="unknown")
 
 
-def poll_replies(offset: int | None = None) -> int | None:
-    params: dict[str, int] = {"timeout": 10}
+def poll_replies(offset: int | None = None, timeout: int = 10) -> int | None:
+    params: dict[str, int] = {"timeout": timeout}
     if offset is not None:
         params["offset"] = offset
     response = requests.get(
@@ -80,12 +80,15 @@ def poll_replies(offset: int | None = None) -> int | None:
         message = update.get("message", {})
         if str(message.get("chat", {}).get("id")) != str(settings.telegram_chat_id):
             continue
-        text = message.get("text", "")
-        parsed = parse_user_reply(text)
         pending = db.get_latest_pending_request()
         if not pending:
             logger.info("Ignoring Telegram reply because there is no pending request")
             continue
+        if pending.telegram_message_id and message.get("message_id", 0) <= pending.telegram_message_id:
+            logger.info("Ignoring Telegram reply older than pending request prompt")
+            continue
+        text = message.get("text", "")
+        parsed = parse_user_reply(text)
         if parsed.action == "confirm" and parsed.room_choice:
             db.confirm_booking_request(pending.id, parsed.room_choice)
             send_message(f"Confirmed. I will try booking {parsed.room_choice} for request #{pending.id}.")

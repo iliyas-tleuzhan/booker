@@ -212,7 +212,13 @@ no
 cancel
 ```
 
-The current implementation includes reply parsing and polling support. For a production setup, run reply polling regularly or wire it into a webhook/worker.
+After replying in Telegram, sync the reply into the database:
+
+```powershell
+python -m app.main poll-telegram
+```
+
+`book-now` also does a quick Telegram poll before checking for a confirmed request. For a production setup, run reply polling regularly or wire it into a webhook/worker.
 
 ## 9. Run A Booking Dry Run
 
@@ -392,6 +398,7 @@ python -m app.main book-now --live
 python -m app.main run
 python -m app.main test-telegram
 python -m app.main test-calendar
+python -m app.main poll-telegram
 ```
 
 ## 13. Run Tests
@@ -458,6 +465,7 @@ python -m app.main test-telegram
 python -m app.main test-calendar
 python -m app.main login-hkul
 python -m app.main plan-now
+python -m app.main poll-telegram
 python -m app.main book-now --dry-run
 python -m app.main run
 ```
