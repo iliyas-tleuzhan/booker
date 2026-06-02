@@ -36,6 +36,9 @@ class BookingRequest:
     start_time: datetime
     end_time: datetime
     room_choice: str | None
+    library_choice: str | None
+    facility_type: str | None
+    conversation_state: str | None
     status: BookingStatus
     telegram_message_id: int | None
     screenshot_path: str | None

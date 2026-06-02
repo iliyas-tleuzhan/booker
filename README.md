@@ -126,12 +126,14 @@ A headed browser opens at `HKUL_BOOKING_URL`. Log in manually, including MFA if 
 Dry-run mode opens the booking site, saves screenshots, and stops before final submission.
 
 ```powershell
-python -m app.main plan-now
+python -m app.main plan-now --target 2-days-after
 python -m app.main poll-telegram
 python -m app.main book-now --dry-run
 ```
 
-Reply in Telegram before running `poll-telegram`. `book-now` also does a quick Telegram poll before checking for a confirmed request. You can also set `DRY_RUN=true` in `.env`, which is the default.
+Manual planning supports `--target today`, `--target tomorrow`, and `--target 2-days-after`; without `--target`, it uses `TARGET_BOOKING_OFFSET_DAYS` from `.env`. Reply in Telegram before running `poll-telegram`. `book-now` also does a quick Telegram poll before checking for a confirmed request. In the continuous scheduler, replies are polled every minute and the booking attempt waits until the configured booking time, default `00:00`. You can also set `DRY_RUN=true` in `.env`, which is the default.
+
+Telegram replies can revise the plan before confirmation. For example, reply `no, choose 14:00-16:00`, then send a library such as `Chi Wah` or `Main Lib`, then a room such as `room 6` or `6`, then confirm the final summary.
 
 ## Live Booking Warning
 
@@ -150,6 +152,10 @@ On a laptop:
 ```powershell
 python -m app.main run
 ```
+
+By default, this asks about a booking date two days ahead during the planner job, records your Telegram approval, then tries the confirmed booking at `00:00` the next day.
+
+Date offsets use normal calendar arithmetic, so planning on May 30 with `--target 2-days-after` checks June 1.
 
 On Raspberry Pi 5:
 
@@ -210,7 +216,7 @@ python -m app.main init-db
 python -m app.main test-telegram
 python -m app.main test-calendar
 python -m app.main login-hkul
-python -m app.main plan-now
+python -m app.main plan-now --target 2-days-after
 python -m app.main poll-telegram
 python -m app.main book-now --dry-run
 python -m app.main run
@@ -229,7 +235,7 @@ python -m app.main init-db
 python -m app.main test-telegram
 python -m app.main test-calendar
 python -m app.main login-hkul
-python -m app.main plan-now
+python -m app.main plan-now --target 2-days-after
 python -m app.main poll-telegram
 python -m app.main book-now --dry-run
 python -m app.main run

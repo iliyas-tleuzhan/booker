@@ -189,7 +189,7 @@ This file is ignored by git.
 Run:
 
 ```powershell
-python -m app.main plan-now
+python -m app.main plan-now --target 2-days-after
 ```
 
 This does the same thing as the scheduled 23:30 planner job:
@@ -197,9 +197,26 @@ This does the same thing as the scheduled 23:30 planner job:
 1. Calculates the target booking date.
 2. Reads your Google Calendar busy events.
 3. Finds free slots.
-4. Picks the best slot.
+4. Picks the best configured-duration booking slot.
 5. Sends you a Telegram message asking which room to try.
 6. Stores a pending booking request in SQLite.
+
+Manual planning supports `--target today`, `--target tomorrow`, and `--target 2-days-after`. Without `--target`, it uses `TARGET_BOOKING_OFFSET_DAYS` from `.env`.
+
+You can revise the Telegram plan conversationally. Example:
+
+```text
+Bot: I found this booking slot for Thursday: 13:00-15:00.
+You: no, choose 14:00-16:00
+Bot: Which library/facility do you want?
+You: Chi Wah
+Bot: Which room should I choose?
+You: 6
+Bot: Thursday 14:00-16:00, Chi Wah Learning Commons, room 6. Is that correct?
+You: yes
+```
+
+Library names are matched case-insensitively, including aliases like `Chiwah`, `Main Lib`, `Law Library`, and `Music Library`.
 
 Reply in Telegram with one of:
 
@@ -218,11 +235,11 @@ After replying in Telegram, sync the reply into the database:
 python -m app.main poll-telegram
 ```
 
-`book-now` also does a quick Telegram poll before checking for a confirmed request. For a production setup, run reply polling regularly or wire it into a webhook/worker.
+`book-now` also does a quick Telegram poll before checking for a confirmed request. When `run` is active, Telegram replies are polled every minute.
 
 ## 9. Run A Booking Dry Run
 
-After you confirm a pending booking request, run:
+After you confirm a pending booking request, run this only if you want to test the booking flow manually:
 
 ```powershell
 python -m app.main book-now --dry-run
@@ -278,8 +295,11 @@ python -m app.main run
 By default:
 
 1. Planner runs daily at 23:30.
-2. Booking attempt runs daily at 00:00.
-3. Target booking date defaults to today plus 2 days.
+2. Telegram replies are polled every minute.
+3. Booking attempt runs daily at 00:00.
+4. The planner asks about today plus 2 days by default. The midnight job books the earliest confirmed request whose target date is not in the past.
+
+Date offsets use normal calendar arithmetic. For example, if today is May 30, `tomorrow` is May 31 and `2-days-after` is June 1.
 
 You can change these values in `.env`:
 
@@ -383,7 +403,7 @@ Dry-run mode stops before final submission. Live mode is intentionally blocked u
 1. `daily_planner_job()` at 23:30.
 2. `midnight_booking_job()` at 00:00.
 
-The planner asks for approval. The midnight job only proceeds if there is a confirmed request.
+The planner asks for approval. The scheduler polls Telegram replies while it waits. The midnight job only proceeds if there is a confirmed request whose target date is not in the past.
 
 ### CLI
 
@@ -464,7 +484,7 @@ python -m app.main init-db
 python -m app.main test-telegram
 python -m app.main test-calendar
 python -m app.main login-hkul
-python -m app.main plan-now
+python -m app.main plan-now --target 2-days-after
 python -m app.main poll-telegram
 python -m app.main book-now --dry-run
 python -m app.main run

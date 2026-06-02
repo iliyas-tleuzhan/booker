@@ -19,26 +19,8 @@ logger = logging.getLogger(__name__)
 
 
 NEW_BOOKING_PATH = "/Secure/NewBooking.aspx"
-CHI_WAH_LEARNING_COMMONS = "5"
-STUDY_ROOM_TYPE = "29"
-STUDY_ROOM_FACILITY_VALUES = {
-    "2": "258",
-    "3": "259",
-    "4": "260",
-    "5": "261",
-    "7": "263",
-    "8": "264",
-    "9": "265",
-    "10": "266",
-    "12": "268",
-    "13": "269",
-    "14": "270",
-    "15": "271",
-    "18": "274",
-    "19": "275",
-    "20": "276",
-    "21": "277",
-}
+DEFAULT_LIBRARY = "Chi Wah Learning Commons"
+DEFAULT_FACILITY_TYPE = "Study Room"
 
 
 def _screenshot_path(prefix: str, request_id: int | None = None) -> Path:
@@ -50,6 +32,18 @@ def _screenshot_path(prefix: str, request_id: int | None = None) -> Path:
 
 def _new_booking_url() -> str:
     return urljoin(settings.hkul_booking_url, NEW_BOOKING_PATH)
+
+
+def _assert_booking_form_loaded(page: Page) -> None:
+    if page.locator("#main_ddlLibrary").count() > 0:
+        return
+    body_text = page.locator("body").inner_text(timeout=5_000)
+    if "HKUL Authentication" in body_text or "Registered library users only" in body_text:
+        raise RuntimeError(
+            "HKUL login is required or the saved session expired. Run `python -m app.main login-hkul`, "
+            "complete the HKUL login in the opened browser, then try again."
+        )
+    raise RuntimeError("HKUL booking form did not load; #main_ddlLibrary was not found.")
 
 
 def _wait_for_option_value(page: Page, selector: str, value: str) -> None:
@@ -72,20 +66,46 @@ def _select_option(page: Page, selector: str, value: str) -> None:
     page.wait_for_timeout(1_000)
 
 
-def _room_facility_value(room_choice: str | None) -> str:
+def _normalize_option_text(value: str) -> str:
+    return " ".join(re.sub(r"[^a-z0-9]+", " ", value.lower()).split())
+
+
+def _option_value_by_text(page: Page, selector: str, expected_text: str) -> str:
+    expected = _normalize_option_text(expected_text)
+    options = page.locator(selector).evaluate(
+        "el => Array.from(el.options).map(option => ({ value: option.value, text: option.text.trim() }))"
+    )
+    for option in options:
+        if option["value"] and _normalize_option_text(option["text"]) == expected:
+            return option["value"]
+    for option in options:
+        if option["value"] and expected in _normalize_option_text(option["text"]):
+            return option["value"]
+    raise RuntimeError(f"Could not find option {expected_text!r} for {selector}. Available options: {options}")
+
+
+def _facility_value(page: Page, room_choice: str | None) -> str:
+    options = page.locator("#main_ddlFacility").evaluate(
+        "el => Array.from(el.options).map(option => ({ value: option.value, text: option.text.trim() }))"
+    )
+    available = [option for option in options if option["value"]]
+    if not available:
+        raise RuntimeError("No facilities are available for the selected library and facility type.")
+
     if not room_choice or room_choice == "any":
-        return STUDY_ROOM_FACILITY_VALUES["5"]
+        return available[0]["value"]
 
     match = re.search(r"\d+", room_choice)
     if not match:
         raise RuntimeError(f"Unsupported room choice: {room_choice!r}. Use a room number such as `room 5`.")
 
     room_number = match.group(0)
-    try:
-        return STUDY_ROOM_FACILITY_VALUES[room_number]
-    except KeyError as exc:
-        supported = ", ".join(sorted(STUDY_ROOM_FACILITY_VALUES, key=int))
-        raise RuntimeError(f"Unsupported Chi Wah study room {room_number}. Supported rooms: {supported}.") from exc
+    for option in available:
+        if re.search(rf"\b{re.escape(room_number)}\b", option["text"]):
+            return option["value"]
+
+    available_labels = [option["text"] for option in available]
+    raise RuntimeError(f"Could not find room {room_number}. Available facilities: {available_labels}")
 
 
 def _session_values(request: BookingRequest) -> list[str]:
@@ -120,7 +140,7 @@ def save_auth_state_manual_login() -> None:
         browser = playwright.chromium.launch(headless=False)
         context = browser.new_context()
         page = context.new_page()
-        page.goto(settings.hkul_booking_url, wait_until="domcontentloaded", timeout=60_000)
+        page.goto(_new_booking_url(), wait_until="domcontentloaded", timeout=60_000)
         input("Log in to HKUL in the opened browser, then press Enter here to save auth state...")
         context.storage_state(path=str(settings.playwright_auth_state_path))
         browser.close()
@@ -146,10 +166,13 @@ def book_room(request: BookingRequest, dry_run: bool = True) -> BookingResult:
             page.goto(_new_booking_url(), wait_until="domcontentloaded", timeout=60_000)
             screenshot_path = _screenshot_path("opened", request.id)
             page.screenshot(path=str(screenshot_path), full_page=True)
+            _assert_booking_form_loaded(page)
 
-            facility_value = _room_facility_value(request.room_choice)
-            _select_option(page, "#main_ddlLibrary", CHI_WAH_LEARNING_COMMONS)
-            _select_option(page, "#main_ddlType", STUDY_ROOM_TYPE)
+            library_value = _option_value_by_text(page, "#main_ddlLibrary", request.library_choice or DEFAULT_LIBRARY)
+            _select_option(page, "#main_ddlLibrary", library_value)
+            type_value = _option_value_by_text(page, "#main_ddlType", request.facility_type or DEFAULT_FACILITY_TYPE)
+            _select_option(page, "#main_ddlType", type_value)
+            facility_value = _facility_value(page, request.room_choice)
             _select_option(page, "#main_ddlFacility", facility_value)
             _select_option(page, "#main_ddlDate", request.target_date.isoformat())
 

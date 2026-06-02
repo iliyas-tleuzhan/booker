@@ -11,6 +11,13 @@ from app.config import settings
 from app.scheduler import daily_planner_job, midnight_booking_job, run_scheduler
 
 
+TARGET_OFFSETS = {
+    "today": 0,
+    "tomorrow": 1,
+    "2-days-after": 2,
+}
+
+
 def _configure_logging() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -37,12 +44,22 @@ def _poll_telegram(timeout: int) -> None:
     print(f"Polled Telegram replies. Next offset: {next_offset}")
 
 
+def _plan_now(target: str | None) -> None:
+    target_offset_days = TARGET_OFFSETS[target] if target else None
+    daily_planner_job(target_offset_days=target_offset_days)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="HKU study room booking assistant")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("init-db")
     sub.add_parser("login-hkul")
-    sub.add_parser("plan-now")
+    plan_now = sub.add_parser("plan-now")
+    plan_now.add_argument(
+        "--target",
+        choices=sorted(TARGET_OFFSETS),
+        help="Calendar date to check. Defaults to TARGET_BOOKING_OFFSET_DAYS from .env.",
+    )
     book_now = sub.add_parser("book-now")
     mode = book_now.add_mutually_exclusive_group(required=True)
     mode.add_argument("--dry-run", action="store_true")
@@ -63,7 +80,7 @@ def main() -> None:
         save_auth_state_manual_login()
         print(f"Saved auth state to {settings.playwright_auth_state_path}")
     elif args.command == "plan-now":
-        daily_planner_job()
+        _plan_now(target=args.target)
     elif args.command == "book-now":
         _book_now(dry_run=args.dry_run)
     elif args.command == "run":
