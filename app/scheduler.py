@@ -56,13 +56,7 @@ def daily_planner_job(target_offset_days: int | None = None) -> None:
 
     booking_start = best.start
     booking_end = min(best.end, booking_start + timedelta(minutes=settings.default_slot_duration_minutes))
-    text = (
-        f"I found this booking slot for {target_date}: "
-        f"{booking_start:%H:%M}-{booking_end:%H:%M}. "
-        "Reply `yes` if the time is good, `no` to cancel, or send a different time like `14:00-16:00`. "
-        "After that I will ask which library/facility and room you want. "
-        f"I will wait until {settings.booking_hour:02d}:{settings.booking_minute:02d} tomorrow before trying to book it."
-    )
+    text = telegram_bot.format_planner_prompt(target_date, booking_start, booking_end)
     message_id = telegram_bot.send_message(text)
     request = db.create_booking_request(target_date, booking_start, booking_end, telegram_message_id=message_id)
     logger.info("Created booking request %s after Telegram message %s", request.id, message_id)

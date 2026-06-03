@@ -13,14 +13,15 @@ The agent plans a candidate booking slot, asks you on Telegram which room to try
 - Stores pending, confirmed, booked, failed, and cancelled requests in SQLite.
 - Reuses a manually saved Playwright login state.
 - Takes screenshots of booking attempts and sends the result on Telegram.
+- Selects HKUL booking form fields with Playwright selectors for library, facility type, room/facility, date, session checkboxes, description, submit, and confirmation.
 - Defaults to dry-run mode.
 
 ## What It Does Not Do
 
 - It does not bypass CAPTCHA, MFA, access controls, anti-bot systems, rate limits, or HKU/HKUL terms.
 - It does not hardcode passwords or secrets.
-- It does not know the HKUL booking page selectors yet.
-- It does not safely perform live booking until you inspect the page DOM and replace the TODO selectors in `app/booking_browser.py`.
+- It does not log in to HKUL by itself; you must save a valid login state with `python -m app.main login-hkul`.
+- It does not guarantee booking success if HKUL changes its page, your login expires, or the selected room/session is unavailable.
 
 ## Safety Notes
 
@@ -137,14 +138,25 @@ Telegram replies can revise the plan before confirmation. For example, reply `no
 
 To customize Telegram wording or accepted phrases, edit `app/telegram_bot.py`: `AFFIRMATIVE_REPLIES`, `CANCEL_REPLIES`, `ANY_ROOM_REPLIES`, `LIBRARY_ALIASES`, `HELP_TEXT`, and the `send_message(...)` calls in `_handle_pending_reply()`.
 
-## Live Booking Warning
+## Current Booking Automation Status
 
-Do not run live booking until `app/booking_browser.py` has real selectors and visible-detail verification for date, time, and room/facility. The current file intentionally raises an error for live mode because the HKUL DOM must be inspected manually.
+The HKUL booking selectors are implemented in `app/booking_browser.py`. The automation opens the New Booking page, verifies that the booking form is loaded, selects the requested library, facility type, room/facility, date, and session checkboxes, fills a description, screenshots the ready-to-submit page, and then:
 
-When ready:
+- In dry-run mode, stops before submission.
+- In live mode, clicks Submit, clicks the final Yes confirmation, screenshots the result, and marks the request as booked unless HKUL returns an error.
+
+Dry-run mode is still recommended after HKUL login changes or if HKUL updates its site.
+
+Manual live booking:
 
 ```powershell
 python -m app.main book-now --live
+```
+
+Continuous live booking through `python booker.py` requires:
+
+```env
+DRY_RUN=false
 ```
 
 ## Running Continuously
@@ -197,11 +209,11 @@ python -m app.main poll-telegram
 - HKUL opens logged out: run `python -m app.main login-hkul` again.
 - Booking dry-run fails before screenshots: check `HKUL_BOOKING_URL` and the saved auth state path.
 - No free slots found: adjust `DEFAULT_SLOT_DURATION_MINUTES`, `TARGET_BOOKING_OFFSET_DAYS`, or your calendar events.
-- Live booking fails: this is expected until the TODO selectors in `app/booking_browser.py` are replaced after inspecting the HKUL booking page.
+- Live booking fails: check the screenshot in `data/screenshots/`, confirm your HKUL login state is still valid, and verify the selected date/session is available on HKUL.
 
-## Why Booking Selectors Are TODO
+## Booking Selector Notes
 
-The HKUL booking site DOM can change and may vary by facility, login state, language, or account permissions. Guessing selectors would be unsafe. Inspect the page manually with Playwright or browser devtools, replace the TODO placeholders, and add assertions that the visible page text matches the requested booking before final submit.
+The current selectors are based on the HKUL New Booking page fields observed during setup. HKUL can still change the DOM, option labels, available facilities, login flow, or confirmation flow. If booking starts failing after a site change, inspect the latest screenshot in `data/screenshots/` and update `app/booking_browser.py`.
 
 ## Commands From Scratch
 

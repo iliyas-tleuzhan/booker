@@ -131,7 +131,7 @@ def _api_url(method: str) -> str:
 def send_message(text: str) -> int | None:
     response = requests.post(
         _api_url("sendMessage"),
-        json={"chat_id": settings.telegram_chat_id, "text": text},
+        json={"chat_id": settings.telegram_chat_id, "text": text, "parse_mode": "Markdown"},
         timeout=20,
     )
     response.raise_for_status()
@@ -182,7 +182,29 @@ def _is_help(text: str) -> bool:
 
 
 def _format_date(value) -> str:
-    return f"{value:%A, %Y-%m-%d}"
+    return f"{value:%Y-%m-%d}"
+
+
+def format_booking_details(request) -> str:
+    library = request.library_choice or "unspecified library"
+    room = request.room_choice or "unspecified room"
+    room = room.replace("room ", "Room ", 1)
+    return (
+        f"Date:     *{_format_date(request.target_date)}*\n"
+        f"Time:     {request.start_time:%H:%M} - {request.end_time:%H:%M}\n"
+        f"Facility: {library}\n"
+        f"Room:     {room}"
+    )
+
+
+def format_planner_prompt(target_date, booking_start: datetime, booking_end: datetime) -> str:
+    return (
+        f"I found this booking slot for *{_format_date(target_date)}:*\n"
+        f"from {booking_start:%H:%M} - to {booking_end:%H:%M}.\n\n"
+        "Reply `yes` if the time is good, `no` to cancel, or send a different time like `14:00-16:00`.\n\n"
+        "After that I will ask which library/facility and room you want.\n"
+        f"I will wait until {settings.booking_hour:02d}:{settings.booking_minute:02d} tomorrow before trying to book it."
+    )
 
 
 def _parse_time_range(text: str, target_date) -> tuple[datetime, datetime] | None:
@@ -224,9 +246,7 @@ def _parse_room(text: str) -> str | None:
 
 
 def _summary(request) -> str:
-    library = request.library_choice or "unspecified library"
-    room = request.room_choice or "unspecified room"
-    return f"{_format_date(request.target_date)}\nTime: {request.start_time:%H:%M}-{request.end_time:%H:%M}\nLibrary: {library}\nRoom: {room}"
+    return format_booking_details(request)
 
 
 def _ask_library(request) -> None:
@@ -340,7 +360,7 @@ def _handle_pending_reply(request, text: str) -> None:
         if _is_affirmative(text):
             room_choice = request.room_choice or "any"
             db.confirm_booking_request(request.id, room_choice)
-            send_message(f"Confirmed. I will try booking this when it becomes available:\n\n{_summary(request)}")
+            send_message(f"Confirmed. I will try booking the following when it becomes available:\n\n{_summary(request)}")
             return
         if normalized.startswith("no"):
             db.update_booking_request_details(request.id, conversation_state="awaiting_initial")
