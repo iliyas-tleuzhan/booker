@@ -135,6 +135,8 @@ Manual planning supports `--target today`, `--target tomorrow`, and `--target 2-
 
 Telegram replies can revise the plan before confirmation. For example, reply `no, choose 14:00-16:00`, then send a library such as `Chi Wah` or `Main Lib`, then a room such as `room 6` or `6`, then confirm the final summary.
 
+To customize Telegram wording or accepted phrases, edit `app/telegram_bot.py`: `AFFIRMATIVE_REPLIES`, `CANCEL_REPLIES`, `ANY_ROOM_REPLIES`, `LIBRARY_ALIASES`, `HELP_TEXT`, and the `send_message(...)` calls in `_handle_pending_reply()`.
+
 ## Live Booking Warning
 
 Do not run live booking until `app/booking_browser.py` has real selectors and visible-detail verification for date, time, and room/facility. The current file intentionally raises an error for live mode because the HKUL DOM must be inspected manually.

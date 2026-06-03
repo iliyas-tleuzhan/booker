@@ -219,6 +219,20 @@ You: yes
 
 Library names are matched case-insensitively, including aliases like `Chiwah`, `Main Lib`, `Law Library`, and `Music Library`.
 
+To customize what the Telegram bot understands, edit `app/telegram_bot.py`:
+
+1. Add approval phrases to `AFFIRMATIVE_REPLIES`.
+2. Add cancellation phrases to `CANCEL_REPLIES`.
+3. Add no-room-preference phrases to `ANY_ROOM_REPLIES`.
+4. Add library nicknames to `LIBRARY_ALIASES`, mapping the phrase you type to the exact library name shown on HKUL.
+5. Edit `HELP_TEXT`, `_ask_library()`, and the `send_message(...)` calls in `_handle_pending_reply()` to change the bot's wording.
+
+After changing parser words, add or update tests in `tests/test_telegram_bot.py`, then run:
+
+```powershell
+python -m pytest tests/test_telegram_bot.py
+```
+
 Reply in Telegram with one of:
 
 ```text
@@ -356,10 +370,14 @@ It ranks slots by:
 It parses replies such as:
 
 ```text
+yes
+book it
+sounds good
+14:00-16:00
+Chi Wah
+Main Lib
 room 5
-any
-yes room 5
-no
+any room
 cancel
 ```
 

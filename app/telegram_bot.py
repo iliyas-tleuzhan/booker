@@ -25,40 +25,101 @@ class ParsedReply:
 AFFIRMATIVE_REPLIES = {
     "yes",
     "y",
+    "yeah",
+    "yep",
+    "yea",
+    "sure",
     "ok",
     "okay",
+    "k",
     "correct",
     "that is correct",
     "thats correct",
+    "right",
     "confirm",
     "confirmed",
-    "sure",
+    "approve",
+    "approved",
+    "book it",
+    "go ahead",
+    "sounds good",
+    "works",
+    "works for me",
     "good",
     "looks good",
+    "perfect",
+}
+CANCEL_REPLIES = {
+    "no",
+    "n",
+    "nope",
+    "cancel",
+    "stop",
+    "nevermind",
+    "never mind",
+    "abort",
+    "skip",
+    "do not book",
+    "dont book",
+    "don t book",
+}
+ANY_ROOM_REPLIES = {
+    "any",
+    "any room",
+    "whatever",
+    "whichever",
+    "first available",
+    "any available",
+    "no preference",
+    "surprise me",
 }
 LIBRARY_ALIASES = {
     "chi wah": "Chi Wah Learning Commons",
     "chiwah": "Chi Wah Learning Commons",
+    "cwl": "Chi Wah Learning Commons",
+    "chi wah commons": "Chi Wah Learning Commons",
     "chi wah learning commons": "Chi Wah Learning Commons",
     "learning commons": "Chi Wah Learning Commons",
     "main": "Main Library",
     "main lib": "Main Library",
     "main library": "Main Library",
+    "ml": "Main Library",
     "dental": "Dental Libary",
+    "dental lib": "Dental Libary",
     "dental library": "Dental Libary",
     "medicine": "Faculty of Medicine",
+    "med": "Faculty of Medicine",
+    "faculty medicine": "Faculty of Medicine",
     "faculty of medicine": "Faculty of Medicine",
     "law": "Law Library",
     "law lib": "Law Library",
     "law library": "Law Library",
     "medical": "Medical Library",
+    "medical lib": "Medical Library",
     "medical library": "Medical Library",
     "music": "Music Library",
+    "music lib": "Music Library",
     "music library": "Music Library",
+    "rsc": "Research Student Centre (Faculty of Engineering)",
     "engineering": "Research Student Centre (Faculty of Engineering)",
+    "engineering centre": "Research Student Centre (Faculty of Engineering)",
+    "eng": "Research Student Centre (Faculty of Engineering)",
     "research student centre": "Research Student Centre (Faculty of Engineering)",
+    "history": "The University of Hong Kong History Gallery",
     "history gallery": "The University of Hong Kong History Gallery",
+    "hku history gallery": "The University of Hong Kong History Gallery",
 }
+
+HELP_TEXT = """I can help you confirm or revise a booking request.
+
+Common replies:
+- yes / ok / looks good / book it
+- no / cancel / stop
+- change time: 14:00-16:00 or 14-16
+- library: Chi Wah, Main Lib, Law Library, Music Lib
+- room: room 6, 6, any room
+
+I will ask for missing details, show a final summary, then wait for your confirmation."""
 
 
 def _api_url(method: str) -> str:
@@ -112,8 +173,20 @@ def _is_affirmative(text: str) -> bool:
     return _normalize(text) in AFFIRMATIVE_REPLIES
 
 
+def _is_cancel(text: str) -> bool:
+    return _normalize(text) in CANCEL_REPLIES
+
+
+def _is_help(text: str) -> bool:
+    return _normalize(text) in {"help", "menu", "options", "what can i say", "commands"}
+
+
+def _format_date(value) -> str:
+    return f"{value:%A, %Y-%m-%d}"
+
+
 def _parse_time_range(text: str, target_date) -> tuple[datetime, datetime] | None:
-    match = re.search(r"(\d{1,2})(?::(\d{2}))?\s*(?:-|–|to)\s*(\d{1,2})(?::(\d{2}))?", text.lower())
+    match = re.search(r"(\d{1,2})(?::(\d{2}))?\s*(?:-|to)\s*(\d{1,2})(?::(\d{2}))?", text.lower())
     if not match:
         return None
     start_hour = int(match.group(1))
@@ -142,27 +215,35 @@ def _parse_library(text: str) -> str | None:
 
 def _parse_room(text: str) -> str | None:
     normalized = _normalize(text)
-    if normalized == "any":
+    if normalized in ANY_ROOM_REPLIES:
         return "any"
-    match = re.search(r"\d+", normalized)
+    match = re.search(r"(?:room|rm|r)?\s*(\d+)", normalized)
     if not match:
         return None
-    return f"room {match.group(0)}"
+    return f"room {match.group(1)}"
 
 
 def _summary(request) -> str:
     library = request.library_choice or "unspecified library"
     room = request.room_choice or "unspecified room"
-    return f"{request.target_date} {request.start_time:%H:%M}-{request.end_time:%H:%M}, {library}, {room}"
+    return f"{_format_date(request.target_date)}\nTime: {request.start_time:%H:%M}-{request.end_time:%H:%M}\nLibrary: {library}\nRoom: {room}"
 
 
 def _ask_library(request) -> None:
     db.update_booking_request_details(request.id, conversation_state="awaiting_library")
-    send_message("Ok, which library/facility do you want? Examples: Chi Wah, Main Library, Law Library, Music Library.")
+    send_message(
+        "Time is good.\n\n"
+        "Which library/facility do you want?\n"
+        "Examples: Chi Wah, Main Lib, Law Library, Music Lib.\n\n"
+        "You can also send `help`."
+    )
 
 
 def _handle_pending_reply(request, text: str) -> None:
     normalized = _normalize(text)
+    if _is_help(text):
+        send_message(HELP_TEXT)
+        return
 
     state = request.conversation_state or "awaiting_initial"
 
@@ -175,29 +256,49 @@ def _handle_pending_reply(request, text: str) -> None:
                 end_time=time_range[1],
                 conversation_state="awaiting_library",
             )
-            send_message(f"Ok, I changed the time to {time_range[0]:%H:%M}-{time_range[1]:%H:%M}. Which library/facility do you want?")
+            send_message(
+                f"Updated time: {time_range[0]:%H:%M}-{time_range[1]:%H:%M}.\n\n"
+                "Which library/facility do you want?\n"
+                "Examples: Chi Wah, Main Lib, Law Library, Music Lib."
+            )
             return
-        if normalized in {"no", "cancel", "stop"}:
+        if _is_cancel(text):
             db.cancel_booking_request(request.id)
             send_message(f"Cancelled booking request #{request.id}.")
             return
         library = _parse_library(text)
         if library:
             updated = db.update_booking_request_details(request.id, library_choice=library, facility_type="Study Room", conversation_state="awaiting_room")
-            send_message(f"Ok, {updated.library_choice}. Which room should I choose?")
+            send_message(
+                f"Library set: {updated.library_choice}.\n\n"
+                "Which room should I choose?\n"
+                "Examples: room 6, 6, any room."
+            )
             return
         room = _parse_room(text)
         if room:
             db.update_booking_request_details(request.id, room_choice=room, conversation_state="awaiting_library")
-            send_message(f"Ok, {room}. Which library/facility do you want?")
+            send_message(
+                f"Room set: {room}.\n\n"
+                "Which library/facility do you want?\n"
+                "Examples: Chi Wah, Main Lib, Law Library, Music Lib."
+            )
             return
-        if _is_affirmative(text) or normalized in {"any"}:
+        if _is_affirmative(text):
             _ask_library(request)
             return
-        send_message("Please reply `yes`, `no`, a time like `14:00-16:00`, or a library name.")
+        send_message(
+            "I did not understand that yet.\n\n"
+            "Please send one of these:\n"
+            "- yes / ok / book it\n"
+            "- no / cancel\n"
+            "- 14:00-16:00\n"
+            "- a library name like Chi Wah or Main Lib\n\n"
+            "Send `help` for more examples."
+        )
         return
 
-    if normalized in {"no", "cancel", "stop"}:
+    if _is_cancel(text):
         db.cancel_booking_request(request.id)
         send_message(f"Cancelled booking request #{request.id}.")
         return
@@ -205,30 +306,49 @@ def _handle_pending_reply(request, text: str) -> None:
     if state == "awaiting_library":
         library = _parse_library(text)
         if not library:
-            send_message("I did not recognize that library. Try `Chi Wah`, `Main Library`, `Law Library`, `Music Library`, or another listed library name.")
+            send_message(
+                "I did not recognize that library.\n\n"
+                "Try one of these:\n"
+                "- Chi Wah / Chiwah / CWL\n"
+                "- Main Library / Main Lib\n"
+                "- Law Library / Law Lib\n"
+                "- Music Library / Music Lib\n"
+                "- Dental Library\n"
+                "- Medical Library\n"
+                "- Research Student Centre\n\n"
+                "Send `cancel` to stop."
+            )
             return
         updated = db.update_booking_request_details(request.id, library_choice=library, facility_type="Study Room", conversation_state="awaiting_room")
-        send_message(f"Ok, {updated.library_choice}. Which room should I choose? You can send `room 6`, `6`, or `any`.")
+        send_message(
+            f"Library set: {updated.library_choice}.\n\n"
+            "Which room should I choose?\n"
+            "Examples: room 6, 6, any room."
+        )
         return
 
     if state == "awaiting_room":
         room = _parse_room(text)
         if not room:
-            send_message("Please send a room number like `room 6`, `6`, or `any`.")
+            send_message("Please send a room number like `room 6`, `6`, `rm 6`, or `any room`.")
             return
         updated = db.update_booking_request_details(request.id, room_choice=room, conversation_state="awaiting_confirmation")
-        send_message(f"{_summary(updated)}. Is that correct?")
+        send_message(f"Please confirm this booking:\n\n{_summary(updated)}\n\nReply `yes` to confirm, `no` to revise, or `cancel`.")
         return
 
     if state == "awaiting_confirmation":
         if _is_affirmative(text):
             room_choice = request.room_choice or "any"
             db.confirm_booking_request(request.id, room_choice)
-            send_message(f"Confirmed. I will try booking {_summary(request)} when it becomes available.")
+            send_message(f"Confirmed. I will try booking this when it becomes available:\n\n{_summary(request)}")
             return
         if normalized.startswith("no"):
             db.update_booking_request_details(request.id, conversation_state="awaiting_initial")
-            send_message("Ok, send the corrected time like `14:00-16:00`, or send `cancel`.")
+            send_message(
+                "Ok, let's revise it.\n\n"
+                "Send the corrected time, like `14:00-16:00`, or send a library/room change.\n"
+                "Send `cancel` to stop."
+            )
             return
         send_message("Please reply `yes` to confirm, `no` to revise, or `cancel`.")
         return
