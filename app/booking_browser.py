@@ -132,6 +132,15 @@ def _check_session(page: Page, value: str) -> None:
     checkbox.check()
 
 
+def _page_has_error(page: Page) -> str | None:
+    body_text = " ".join(page.locator("body").inner_text(timeout=5_000).split())
+    error_markers = ["error", "not available", "already booked", "cannot", "failed", "invalid"]
+    lowered = body_text.lower()
+    if any(marker in lowered for marker in error_markers):
+        return body_text[:1_000]
+    return None
+
+
 def save_auth_state_manual_login() -> None:
     if not settings.hkul_booking_url:
         raise ValueError("HKUL_BOOKING_URL is required")
@@ -208,7 +217,22 @@ def book_room(request: BookingRequest, dry_run: bool = True) -> BookingResult:
             page.screenshot(path=str(confirm_path), full_page=True)
             screenshot_path = confirm_path
 
-            raise RuntimeError("Live final confirmation is still disabled. Inspect the confirmation screenshot first.")
+            page.locator("#main_btnSubmitYes").click()
+            page.wait_for_load_state("networkidle", timeout=60_000)
+            final_path = _screenshot_path("booked", request.id)
+            page.screenshot(path=str(final_path), full_page=True)
+            screenshot_path = final_path
+
+            error_text = _page_has_error(page)
+            if error_text:
+                raise RuntimeError(f"HKUL returned an error after final submit: {error_text}")
+
+            browser.close()
+            return BookingResult(
+                success=True,
+                status="booked",
+                screenshot_path=str(screenshot_path),
+            )
     except (PlaywrightTimeoutError, PlaywrightError, RuntimeError) as exc:
         logger.exception("Booking attempt failed")
         return BookingResult(

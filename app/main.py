@@ -36,6 +36,11 @@ def _book_now(dry_run: bool) -> None:
     if request is None:
         raise SystemExit("No confirmed booking request found. Confirm a pending request first.")
     result = book_room(request, dry_run=dry_run)
+    if not dry_run:
+        if result.success:
+            db.mark_booked(request.id, result.screenshot_path or "")
+        else:
+            db.mark_failed(request.id, result.error_message or "Unknown booking error", result.screenshot_path)
     print(result)
 
 

@@ -1,6 +1,6 @@
 import pytest
 
-from app.booking_browser import _assert_booking_form_loaded
+from app.booking_browser import _assert_booking_form_loaded, _page_has_error
 
 
 class FakeLocator:
@@ -30,3 +30,9 @@ def test_assert_booking_form_loaded_reports_expired_login() -> None:
 
     with pytest.raises(RuntimeError, match="login-hkul"):
         _assert_booking_form_loaded(page)
+
+
+def test_page_has_error_detects_booking_error_text() -> None:
+    page = FakePage("This facility is not available for booking.")
+
+    assert _page_has_error(page) is not None
