@@ -150,12 +150,14 @@ python -m app.main book-now --live
 On a laptop:
 
 ```powershell
-python -m app.main run
+python booker.py
 ```
 
 By default, this asks about a booking date two days ahead during the planner job, records your Telegram approval, then tries the confirmed booking at `00:00` the next day.
 
 Date offsets use normal calendar arithmetic, so planning on May 30 with `--target 2-days-after` checks June 1.
+
+Keep this process running. It polls Telegram continuously and uses the real current date/time from the machine clock. Press `Ctrl+C` in the terminal to stop Booker.
 
 On Raspberry Pi 5:
 
@@ -167,7 +169,7 @@ python -m pip install -r requirements.txt
 python -m playwright install chromium
 cp .env.example .env
 python -m app.main init-db
-python -m app.main run
+python booker.py
 ```
 
 For long-running use on a Pi, create a `systemd` service that starts the virtualenv Python from this project directory.
@@ -219,7 +221,7 @@ python -m app.main login-hkul
 python -m app.main plan-now --target 2-days-after
 python -m app.main poll-telegram
 python -m app.main book-now --dry-run
-python -m app.main run
+python booker.py
 ```
 
 For PowerShell:
@@ -238,5 +240,5 @@ python -m app.main login-hkul
 python -m app.main plan-now --target 2-days-after
 python -m app.main poll-telegram
 python -m app.main book-now --dry-run
-python -m app.main run
+python booker.py
 ```

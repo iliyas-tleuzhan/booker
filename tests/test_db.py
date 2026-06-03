@@ -110,3 +110,18 @@ def test_app_state_round_trip(tmp_path) -> None:
     db.set_app_state("telegram_update_offset", "123", database_path)
 
     assert db.get_app_state("telegram_update_offset", database_path) == "123"
+
+
+def test_get_active_request_for_target_date(tmp_path) -> None:
+    database_path = tmp_path / "bookings.db"
+    request = db.create_booking_request(
+        target_date=date(2026, 6, 4),
+        start_time=datetime(2026, 6, 4, 12, 0),
+        end_time=datetime(2026, 6, 4, 14, 0),
+        database_path=database_path,
+    )
+
+    active = db.get_active_request_for_target_date(date(2026, 6, 4), database_path)
+
+    assert active is not None
+    assert active.id == request.id

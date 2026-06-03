@@ -35,6 +35,7 @@ class Settings:
     planner_minute: int
     booking_hour: int
     booking_minute: int
+    telegram_poll_interval_seconds: int
     target_booking_offset_days: int
     playwright_auth_state_path: Path
     screenshot_dir: Path
@@ -55,6 +56,7 @@ def load_settings() -> Settings:
         planner_minute=_as_int("PLANNER_MINUTE", 30),
         booking_hour=_as_int("BOOKING_HOUR", 0),
         booking_minute=_as_int("BOOKING_MINUTE", 0),
+        telegram_poll_interval_seconds=_as_int("TELEGRAM_POLL_INTERVAL_SECONDS", 60),
         target_booking_offset_days=_as_int("TARGET_BOOKING_OFFSET_DAYS", 2),
         playwright_auth_state_path=Path(os.getenv("PLAYWRIGHT_AUTH_STATE_PATH", "playwright/.auth/hku.json")),
         screenshot_dir=Path(os.getenv("SCREENSHOT_DIR", "data/screenshots")),
@@ -64,4 +66,3 @@ def load_settings() -> Settings:
 
 
 settings = load_settings()
-

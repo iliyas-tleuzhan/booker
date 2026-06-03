@@ -15,10 +15,34 @@ from app.slot_picker import find_free_slots, pick_best_slot
 logger = logging.getLogger(__name__)
 
 
+def _validate_runtime_settings() -> None:
+    missing = []
+    if not settings.telegram_bot_token:
+        missing.append("TELEGRAM_BOT_TOKEN")
+    if not settings.telegram_chat_id:
+        missing.append("TELEGRAM_CHAT_ID")
+    if not settings.hkul_booking_url:
+        missing.append("HKUL_BOOKING_URL")
+    if missing:
+        raise ValueError(f"Missing required settings for continuous Booker run: {', '.join(missing)}")
+    if settings.telegram_poll_interval_seconds <= 0:
+        raise ValueError("TELEGRAM_POLL_INTERVAL_SECONDS must be greater than 0")
+
+
 def daily_planner_job(target_offset_days: int | None = None) -> None:
     tz = ZoneInfo(settings.timezone)
     offset_days = settings.target_booking_offset_days if target_offset_days is None else target_offset_days
     target_date = datetime.now(tz).date() + timedelta(days=offset_days)
+    existing = db.get_active_request_for_target_date(target_date)
+    if existing is not None:
+        logger.info(
+            "Skipping planner for %s because request %s is already %s",
+            target_date,
+            existing.id,
+            existing.status.value,
+        )
+        return
+
     busy_blocks = calendar_client.get_busy_blocks(target_date)
     slots = find_free_slots(
         busy_blocks,
@@ -52,7 +76,10 @@ def _booking_target_date(now: datetime | None = None) -> date:
 
 
 def poll_telegram_replies_job() -> None:
-    telegram_bot.poll_replies(timeout=0)
+    try:
+        telegram_bot.poll_replies(timeout=0)
+    except Exception:
+        logger.exception("Telegram polling failed")
 
 
 def midnight_booking_job(dry_run: bool | None = None) -> None:
@@ -81,10 +108,49 @@ def midnight_booking_job(dry_run: bool | None = None) -> None:
 
 
 def run_scheduler() -> None:
-    logging.basicConfig(level=logging.INFO)
+    _validate_runtime_settings()
+    db.init_db()
     scheduler = BlockingScheduler(timezone=settings.timezone)
-    scheduler.add_job(daily_planner_job, "cron", hour=settings.planner_hour, minute=settings.planner_minute)
-    scheduler.add_job(midnight_booking_job, "cron", hour=settings.booking_hour, minute=settings.booking_minute)
-    scheduler.add_job(poll_telegram_replies_job, "interval", seconds=60, id="poll_telegram_replies")
-    logger.info("Scheduler started")
-    scheduler.start()
+    scheduler.add_job(
+        daily_planner_job,
+        "cron",
+        hour=settings.planner_hour,
+        minute=settings.planner_minute,
+        id="daily_planner",
+        coalesce=True,
+        max_instances=1,
+        misfire_grace_time=300,
+    )
+    scheduler.add_job(
+        midnight_booking_job,
+        "cron",
+        hour=settings.booking_hour,
+        minute=settings.booking_minute,
+        id="booking_attempt",
+        coalesce=True,
+        max_instances=1,
+        misfire_grace_time=300,
+    )
+    scheduler.add_job(
+        poll_telegram_replies_job,
+        "interval",
+        seconds=settings.telegram_poll_interval_seconds,
+        id="poll_telegram_replies",
+        coalesce=True,
+        max_instances=1,
+    )
+    now = datetime.now(ZoneInfo(settings.timezone))
+    logger.info(
+        "Booker loop started at %s. Planner %02d:%02d, booking %02d:%02d, Telegram poll every %ss, dry_run=%s. Press Ctrl+C to stop.",
+        now.strftime("%Y-%m-%d %H:%M:%S %Z"),
+        settings.planner_hour,
+        settings.planner_minute,
+        settings.booking_hour,
+        settings.booking_minute,
+        settings.telegram_poll_interval_seconds,
+        settings.dry_run,
+    )
+    try:
+        scheduler.start()
+    except (KeyboardInterrupt, SystemExit):
+        logger.info("Booker loop stopped")

@@ -147,6 +147,21 @@ def get_latest_pending_request(database_path: str | Path | None = None) -> Booki
         return _row_to_request(row)
 
 
+def get_active_request_for_target_date(target_date: date, database_path: str | Path | None = None) -> BookingRequest | None:
+    init_db(database_path)
+    with connect(database_path) as conn:
+        row = conn.execute(
+            """
+            SELECT * FROM booking_requests
+            WHERE target_date = ? AND status IN (?, ?)
+            ORDER BY created_at DESC, id DESC
+            LIMIT 1
+            """,
+            (target_date.isoformat(), BookingStatus.PENDING.value, BookingStatus.CONFIRMED.value),
+        ).fetchone()
+        return _row_to_request(row)
+
+
 def get_app_state(key: str, database_path: str | Path | None = None) -> str | None:
     init_db(database_path)
     with connect(database_path) as conn:

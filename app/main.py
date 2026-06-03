@@ -89,6 +89,7 @@ def main() -> None:
     elif args.command == "book-now":
         _book_now(dry_run=args.dry_run)
     elif args.command == "run":
+        print("Booker is running continuously. Press Ctrl+C to stop.")
         run_scheduler()
     elif args.command == "test-telegram":
         message_id = telegram_bot.send_message("HKU booking agent Telegram test message.")

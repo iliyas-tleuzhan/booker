@@ -68,3 +68,20 @@ def test_daily_planner_target_offset_handles_month_rollover(monkeypatch) -> None
     scheduler.daily_planner_job(target_offset_days=2)
 
     assert captured["target_date"].isoformat() == "2026-06-01"
+
+
+def test_daily_planner_skips_existing_active_request(monkeypatch) -> None:
+    sent_messages = []
+
+    class FixedDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return cls(2026, 6, 2, 10, 0, tzinfo=tz)
+
+    monkeypatch.setattr(scheduler, "datetime", FixedDatetime)
+    monkeypatch.setattr(scheduler.db, "get_active_request_for_target_date", lambda target_date: type("Request", (), {"id": 7, "status": type("Status", (), {"value": "pending"})()})())
+    monkeypatch.setattr(scheduler.telegram_bot, "send_message", lambda text: sent_messages.append(text))
+
+    scheduler.daily_planner_job(target_offset_days=2)
+
+    assert sent_messages == []

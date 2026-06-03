@@ -76,6 +76,7 @@ PLANNER_HOUR=23
 PLANNER_MINUTE=30
 BOOKING_HOUR=0
 BOOKING_MINUTE=0
+TELEGRAM_POLL_INTERVAL_SECONDS=60
 PLAYWRIGHT_AUTH_STATE_PATH=playwright/.auth/hku.json
 SCREENSHOT_DIR=data/screenshots
 DATABASE_PATH=data/bookings.db
@@ -289,8 +290,10 @@ python -m app.main book-now --live
 Start the continuous scheduler:
 
 ```powershell
-python -m app.main run
+python booker.py
 ```
+
+Keep this process running. Booker uses the machine's current date/time, polls Telegram every `TELEGRAM_POLL_INTERVAL_SECONDS`, runs the planner at `PLANNER_HOUR:PLANNER_MINUTE`, and runs the booking attempt at `BOOKING_HOUR:BOOKING_MINUTE`. Press `Ctrl+C` in the terminal to stop it.
 
 By default:
 
@@ -308,6 +311,7 @@ PLANNER_HOUR=23
 PLANNER_MINUTE=30
 BOOKING_HOUR=0
 BOOKING_MINUTE=0
+TELEGRAM_POLL_INTERVAL_SECONDS=60
 TARGET_BOOKING_OFFSET_DAYS=2
 ```
 
@@ -487,7 +491,7 @@ python -m app.main login-hkul
 python -m app.main plan-now --target 2-days-after
 python -m app.main poll-telegram
 python -m app.main book-now --dry-run
-python -m app.main run
+python booker.py
 ```
 
 Only use live booking after the HKUL selectors have been implemented and tested in dry-run mode.
