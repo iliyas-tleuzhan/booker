@@ -159,6 +159,22 @@ Continuous live booking through `python booker.py` requires:
 DRY_RUN=false
 ```
 
+## Desktop App
+
+Booker can also run from a small desktop interface instead of typing CLI commands.
+
+From PowerShell:
+
+```powershell
+python booker_app.py
+```
+
+On Windows, you can also double-click `start_booker_app.bat`.
+
+The app provides buttons for setup checks, database initialization, HKUL login, manual planning, Telegram polling, dry-run booking, live booking, and starting or stopping the continuous scheduler. The output panel shows the same logs and command results you would normally see in the terminal.
+
+During HKUL login, complete the browser login manually, then click **Finish login** in the Booker app. Live booking still asks for confirmation before it runs.
+
 ## Running Continuously
 
 On a laptop:
